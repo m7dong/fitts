@@ -1,5 +1,5 @@
 (function($) {
-	$.blurry = function() {
+	$.blurry = function(round, inBetween) {
 		var c1 = $('#overCanvas')[0],
 			ctx1 = c1.getContext("2d");
 
@@ -22,25 +22,31 @@
 		ctx2.imageSmoothingEnabled = false;
 
 		// wait until image is actually available
-		img.onload = pixelate;
+		if (inBetween == false) {
+			img.onload = pixelate;
+		}
 
 		// some image, we are not struck with CORS restrictions as we
 		// do not use pixel buffer to pixelate, so any image will do
-		img.src = '/static/img/image.jpg';
+		var images = ['/static/img/image.jpg', '/static/img/image1.jpg',
+			  	      '/static/img/image2.jpg', '/static/img/image3.jpg', '/static/img/image4.jpeg'];
+		img.src = images[round];
 
 		var canvas = $('canvas')[0];
 		var blocks = $('#blocks')[0];
 
 		var curr_param = 0
-		var radius_params = [[50, 100], [45, 115], [30, 130],
-                             [25, 145], [20, 160], [15, 175],
-                             [15, 190], [15, 210], [10, 230]]
-		var circles = initializeCircles(250, 240, 9, radius_params[curr_param][0],
+		var radius_params = [[32, 80], [13.2, 100], [9.3, 120],
+                             [7, 140], [5.5, 160], [4.7, 180],
+                             [4, 200], [3.3, 220], [2.7, 240]]
+		var circles = initializeCircles(250, 245, 9, radius_params[curr_param][0],
 										radius_params[curr_param][1]);
+
+		var already_clicked = [];
 
 		var toggled = false, toggledTo = null;
 
-		var move = [], pathPassed = [], clicked = [], measures = []
+		var move = [], pathPassed = [], clicked = [], measures = [], time = [];
 
 		c1.onclick = function(e) { // After each click
 			ctx1.clearRect(0,0,c1.width,c1.height);
@@ -66,25 +72,57 @@
 			});
 
 			if (toggled == true) {
-				pixelValue = modifyPixelValue(pixelValue, true, false);
-      			pixelate();
-
+				time.push(Date.now());
 				$.each(circles, function(index) {
       				if (toggledFrom == this) {
       					circles[index].active = false;
-      					if (index == circles.length - 1) {
+						already_clicked.push(index);
+      					if (already_clicked.length == 9) {
       						circles[0].active = true;
+							pixelValue = modifyPixelValue(pixelValue, true, false);
+							toSeq = [];
+							clicked_round = clicked.slice(clicked.length - 9, clicked.length);
+							$.each(circles, function() {
+				      			toSeq.push(new Point(this.x, this.y));
+							});
+							throughput = $.throughput(clicked_round.slice(0, 8), toSeq.slice(1,9),
+													  clicked_round.slice(1, 9),
+													  this.r, time, 2 * radius_params[curr_param][1]);
+							time = [];
+							console.log(throughput)
+							if (inBetween == false) {
+								pixelate();
+							}
+							if (inBetween == true) {
+								pixelate();
+	                            document.getElementById("underCanvas").style.zIndex = 6;
+	                            document.getElementById("underCanvas").style.opacity = 1;
+	                            clear = setInterval(clearImage, 5000);
+							}
 							if (curr_param < radius_params.length - 1) {
+								already_clicked = [];
                                 curr_param += 1;
+								circles = initializeCircles(250, 240, 9, radius_params[curr_param][0],
+															radius_params[curr_param][1]);
                             }
                             else {
-                                alert("Thanks for the participation!")
+								if (round < images.length - 1) {
+									round = round + 1;
+									curr_param = 0;
+									circles = initializeCircles(250, 240, 9, radius_params[curr_param][0],
+																radius_params[curr_param][1]);
+									document.getElementById("underCanvas").style.zIndex = 6;
+									document.getElementById("underCanvas").style.opacity = 1;
+									clear = setInterval(clearImage, 3000);
+									clearNextRound = setInterval(nextRound, 3000);
+								}
+								else {
+									alert("Thanks for the participation!");
+								}
                             }
-							circles = initializeCircles(250, 240, 9, radius_params[curr_param][0],
-														radius_params[curr_param][1]);
       					}
       					else {
-      						circles[index + 1].active = true;
+      						circles[(index + 4) % 9].active = true;
       					}
 
 						if (clicked.length > 1) {
@@ -98,7 +136,9 @@
 			}
 			else {
 				pixelValue = modifyPixelValue(pixelValue, false, false);
-      			pixelate();
+				if (inBetween == false) {
+					pixelate();
+				}
 			}
 
 			$.each(circles, function() {
@@ -147,9 +187,20 @@
 
     	});
 
+		function nextRound() {
+			$.blurry(round, inBetween)
+			clearInterval(clearNextRound);
+		}
+
+		function clearImage() {
+            ctx2.clearRect(0, 0, c2.width, c2.height);
+            document.getElementById("underCanvas").style.zIndex = 1;
+            clearInterval(clear);
+        }
+
 		function pixelate() {
     		// if in play mode use that value, else use slider value
-    		var size = pixelValue * 0.02,
+    		var size = pixelValue * 0.05,
 
         		// cache scaled width and height
        		    w = canvas.width * size,
@@ -166,15 +217,15 @@
 
     	function modifyPixelValue(pixelValue, targetHit, penalize) {
     		if (targetHit == true) {
-    			if (pixelValue < 10) {
+    			if (pixelValue < 2.6) {
       				pixelValue += 0.2;
       			}
-      			else if (pixelValue < 50) {
-      				pixelValue++;
+      			else {
+      				pixelValue = 20;
       			}
     		}
     		else if (penalize == true && pixelValue - 0.5 >= 1) {
-    			pixelValue -= 0.5;
+    			pixelValue -= 4.5;
     		}
     		return pixelValue;
     	}

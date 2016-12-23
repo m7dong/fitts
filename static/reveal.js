@@ -1,5 +1,5 @@
 (function($) {
-	$.reveal = function() {
+	$.reveal = function(round, inBetween) {
 		var c1 = $('#overCanvas')[0],
 			ctx1 = c1.getContext("2d");
 
@@ -15,26 +15,31 @@
 		var img = new Image();
 		// some image, we are not struck with CORS restrictions as we
 		// do not use pixel buffer to pixelate, so any image will do
-		img.src = '/static/img/image.jpg';
+		var images = ['/static/img/image.jpg', '/static/img/image1.jpg',
+			  	      '/static/img/image2.jpg', '/static/img/image3.jpg', '/static/img/image4.jpeg'];
+		img.src = images[round];
         var item_shown = [];
-        var pieces_counter = 0;
+        var pieces_counter = Math.floor(Math.random() * (80 - 0 + 1));
+		var correct_click = 0;
 
 		var canvas = $('canvas')[0];
 		var blocks = $('#blocks')[0];
 
 		var curr_param = 0
-		var radius_params = [[50, 100], [45, 115], [30, 130],
-                             [25, 145], [20, 160], [15, 175],
-                             [15, 190], [15, 210], [10, 230]]
+		var radius_params = [[32, 80], [13.2, 100], [9.3, 120],
+                             [7, 140], [5.5, 160], [4.7, 180],
+                             [4, 200], [3.3, 220], [2.7, 240]]
 		var circles = initializeCircles(250, 240, 9, radius_params[curr_param][0],
 										radius_params[curr_param][1]);
+		var already_clicked = [];
 
 		var toggled = false, toggledTo = null;
 
-		var move = [], pathPassed = [], clicked = [], measures = []
+		var move = [], pathPassed = [], clicked = [], measures = [], time = [];
 
 		c1.onclick = function(e) { // After each click
 			ctx1.clearRect(0,0,c1.width,c1.height);
+			console.log("!!!!", correct_click)
 			toggled = false;
 
 			var rect = this.getBoundingClientRect(); // get abs. position of canvas
@@ -53,30 +58,65 @@
       				this.active == true) {
       				toggled = true;
       				toggledFrom = this;
+					correct_click = correct_click + 1;
       			}
 			});
 
 			if (toggled == true) {
+				time.push(Date.now());
                 item_shown.push(pieces_counter);
-                pieces_counter++;
-                drawPieces(item_shown);
+				if (correct_click < radius_params.length * 9) {
+					while(item_shown.includes(pieces_counter)) {
+						pieces_counter = Math.floor(Math.random() * (80 - 0 + 1));
+					}
+				}
+				if (inBetween == false) {
+					drawPieces(item_shown);
+				}
 
 				$.each(circles, function(index) {
       				if (toggledFrom == this) {
       					circles[index].active = false;
-      					if (index == circles.length - 1) {
-      						circles[0].active = true;
+						already_clicked.push(index);
+      					if (already_clicked.length == 9) {
+							circles[0].active = true;
+							toSeq = [];
+							clicked_round = clicked.slice(clicked.length - 9, clicked.length);
+							$.each(circles, function() {
+				      			toSeq.push(new Point(this.x, this.y));
+							});
+							throughput = $.throughput(clicked_round.slice(0, 8), toSeq.slice(1,9),
+													  clicked_round.slice(1, 9),
+													  this.r, time, 2 * radius_params[curr_param][1]);
+							time = [];
+							console.log(throughput)
+							if (inBetween == true) {
+								drawPieces(item_shown);
+	                            document.getElementById("underCanvas").style.zIndex = 6;
+	                            document.getElementById("underCanvas").style.opacity = 1;
+	                            clear = setInterval(clearImage, 3000);
+							}
 							if (curr_param < radius_params.length - 1) {
+								already_clicked = [];
                                 curr_param += 1;
+								circles = initializeCircles(250, 240, 9, radius_params[curr_param][0],
+															radius_params[curr_param][1]);
                             }
-                            else {
-                                alert("Thanks for the participation!")
+							else {
+								if (round < images.length - 1) {
+									round = round + 1;
+	                                curr_param = 0;
+									circles = initializeCircles(250, 240, 9, radius_params[curr_param][0],
+																radius_params[curr_param][1]);
+									clearNextRound = setInterval(nextRound, 3000);
+								}
+								else {
+									alert("Thanks for the participation!");
+								}
                             }
-							circles = initializeCircles(250, 240, 9, radius_params[curr_param][0],
-														radius_params[curr_param][1]);
       					}
       					else {
-      						circles[index + 1].active = true;
+      						circles[(index + 4) % 9].active = true;
       					}
 
 						if (clicked.length > 1) {
@@ -131,6 +171,17 @@
 
     	});
 
+		function nextRound() {
+			$.reveal(round, inBetween);
+			clearInterval(clearNextRound);
+		}
+
+		function clearImage() {
+            ctx2.clearRect(0, 0, c2.width, c2.height);
+            document.getElementById("underCanvas").style.zIndex = 1;
+            clearInterval(clear);
+        }
+
         function drawPieces(item_shown) {
             var rows=9;
             var cols=9;
@@ -150,10 +201,11 @@
                 }
             }
 
-            var i=0;
+			var i = 0;
             for(var y=0;y<rows;y++){
                 for(var x=0;x<cols;x++){
-                    var p=pieces[i++];
+                    var p=pieces[i];
+					i++;
                     if(item_shown.includes(i-1)) {
                         ctx2.drawImage(
                             img,

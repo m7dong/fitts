@@ -16,14 +16,16 @@
 		var blocks = $('#blocks')[0];
 
         var curr_param = 0;
-        var radius_params = [[50, 100], [45, 115], [30, 130],
-                             [25, 145], [20, 160], [15, 175],
-                             [15, 190], [15, 210], [10, 230]]
+        var radius_params = [[32, 80], [13.2, 100], [9.3, 120],
+                             [7, 140], [5.5, 160], [4.7, 180],
+                             [4, 200], [3.3, 220], [2.7, 240]]
 		var circles = initializeCircles(250, 240, 9, radius_params[0][0], radius_params[0][1]);
+
+		var already_clicked = [];
 
 		var toggled = false, toggledTo = null;
 
-		var move = [], pathPassed = [], clicked = [], measures = []
+		var pathPassed = [], clicked = [], measures = [], time = [];
 
 		c1.onclick = function(e) { // After each click
 			ctx1.clearRect(0,0,c1.width,c1.height);
@@ -49,13 +51,28 @@
 			});
 
 			if (toggled == true) {
+				time.push(Date.now());
 				$.each(circles, function(index) {
       				if (toggledFrom == this) {
       					circles[index].active = false;
-      					if (index == circles.length - 1) {
+						already_clicked.push(index);
+      					if (already_clicked.length == 9) {
       						circles[0].active = true;
-                            if (curr_param < radius_params.length - 1) {
+							toSeq = [];
+							clicked_round = clicked.slice(clicked.length - 9, clicked.length);
+							$.each(circles, function() {
+				      			toSeq.push(new Point(this.x, this.y));
+							});
+							throughput = $.throughput(clicked_round.slice(0, 8), toSeq.slice(1,9),
+													  clicked_round.slice(1, 9),
+													  this.r, time, 2 * radius_params[curr_param][1]);
+							time = [];
+							//console.log(throughput)
+							if (curr_param < radius_params.length - 1) {
+								already_clicked = [];
                                 curr_param += 1;
+								circles = initializeCircles(250, 240, 9, radius_params[curr_param][0],
+															radius_params[curr_param][1]);
                             }
                             else {
                                 alert("Thanks for the participation!")
@@ -64,14 +81,13 @@
 														radius_params[curr_param][1]);
       					}
       					else {
-      						circles[index + 1].active = true;
+      						circles[(index + 4) % 9].active = true;
       					}
 
 						if (clicked.length > 1) {
 							var toArg = new Point(this.x, this.y)
 							measures = $.accuracyMeasure(clicked[clicked.length - 2],
 													     toArg, this.r, pathPassed)
-							console.log(measures)
 						}
       				}
 				});
@@ -97,7 +113,6 @@
 				}
 			);
 
-			move = [];
   			pathPassed = [];
 		};
 
@@ -116,9 +131,6 @@
                 ctx1.shadowBlur    = 0;
 				ctx1.fillStyle="#FF0000";
 				ctx1.fillRect(relativePositionPassed.x,relativePositionPassed.y,1.5,1.5);
-
-				move.push("(" + normalizedPositionPassed.x.toFixed(2).toString() + "," +
-					normalizedPositionPassed.y.toFixed(2).toString() + ")");
 			}
 
     	});

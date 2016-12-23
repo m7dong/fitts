@@ -167,8 +167,9 @@
 
 		var xTranslate = from.x;
 		var yTranslate = from.y;
-		for (i = 0; i < p.length; ++i)
+		for (i = 0; i < p.length; ++i) {
 			tp[i] = new Point((p[i].x - xTranslate), (p[i].y - yTranslate));
+		}
 
 		var xDelta = to.x - from.x;
 		var yDelta = to.y - from.y;

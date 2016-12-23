@@ -57,14 +57,14 @@
             $('#vanilla').removeClass('active');
             $('#blurry').addClass('active');
             $('#reveal').removeClass('active');
-            $.blurry();
+            $.blurry(0, false);
         }
 
         $('#reveal')[0].onclick = function(e) {
             $('#vanilla').removeClass('active');
             $('#blurry').removeClass('active');
             $('#reveal').addClass('active');
-            $.reveal();
+            $.reveal(0, true);
         }
 
     }
